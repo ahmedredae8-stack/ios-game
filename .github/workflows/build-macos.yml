@@ -3,12 +3,12 @@ name: Build Shaker iOS App
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # يتيح لك بدء البناء يدوياً بضغطة زر من صفحة Actions
+  workflow_dispatch:
 
 jobs:
   build-ios:
     name: Build Shaker IPA
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
       - name: Checkout repository with Git LFS
@@ -21,9 +21,9 @@ jobs:
           git lfs pull
           chmod +x *.sh || true
 
-      - name: Select latest stable Xcode
+      - name: Verify Xcode Version
         run: |
-          sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode.app
+          sudo xcode-select -s /Applications/Xcode_16.app || sudo xcode-select -s /Applications/Xcode.app || true
           xcodebuild -version
 
       - name: Setup Apple Certificates (Optional)
