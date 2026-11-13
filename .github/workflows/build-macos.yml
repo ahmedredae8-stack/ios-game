@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build Shaker IPA
+    name: Build Shaker IPA (Optimized)
     runs-on: macos-15
     timeout-minutes: 90
 
@@ -26,14 +26,12 @@ jobs:
 
       - name: Select Latest Installed Xcode
         run: |
-          echo "=== الإصدارات المتاحة من Xcode ==="
-          ls -d /Applications/Xcode*.app
           NEWEST_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -n1)
-          echo "تم اختيار: $NEWEST_XCODE"
+          echo "Selecting: $NEWEST_XCODE"
           sudo xcode-select -s "$NEWEST_XCODE"
           xcodebuild -version
 
-      - name: Build and Archive
+      - name: Build and Archive with Stripping
         run: |
           xcodebuild -project Unity-iPhone.xcodeproj \
             -scheme Unity-iPhone \
@@ -44,18 +42,36 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            STRIP_INSTALLED_PRODUCT=YES \
+            DEPLOYMENT_POSTPROCESSING=YES \
+            COPY_PHASE_STRIP=YES \
+            STRIP_STYLE=all \
             archive
 
-      - name: Package App into IPA
+      - name: Strip Symbols and Package Optimized IPA
         run: |
           mkdir -p Payload
           cp -r build/Unity-iPhone.xcarchive/Products/Applications/*.app Payload/
-          zip -r -y Shaker.ipa Payload
+
+          echo "=== تنظيف ملفات الرموز غير الضرورية ==="
+          find Payload -name "*.dSYM" -exec rm -rf {} + 2>/dev/null || true
+          find Payload -name "*.bcsymbolmap" -delete 2>/dev/null || true
+          find Payload -name "*.pdb" -delete 2>/dev/null || true
+          find Payload -name "*.map" -delete 2>/dev/null || true
+
+          echo "=== تجريد الرموز من المكتبات والملف التنفيذي ==="
+          find Payload -type f -perm +111 -exec strip -S {} + 2>/dev/null || true
+          find Payload -name "UnityFramework" -exec strip -S {} + 2>/dev/null || true
+
+          echo "=== ضغط ملف IPA بأعلى نسبة ضغط (Level 9) ==="
+          zip -9 -r -y Shaker.ipa Payload
+          
+          echo "الحجم الجديد بعد التحسين:"
           ls -lh Shaker.ipa
 
-      - name: Upload IPA Artifact
+      - name: Upload Optimized IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Shaker-iOS-IPA
+          name: Shaker-iOS-IPA-Optimized
           path: Shaker.ipa
           retention-days: 14
