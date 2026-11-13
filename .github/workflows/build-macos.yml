@@ -23,8 +23,23 @@ jobs:
 
       - name: Verify Xcode Version
         run: |
-          sudo xcode-select -s /Applications/Xcode_16.app || sudo xcode-select -s /Applications/Xcode.app || true
           xcodebuild -version
+
+      - name: Bypass Storyboard ibtool bug
+        run: |
+          echo "Patching project.pbxproj to skip storyboard compilation..."
+          python3 -c "
+with open('Unity-iPhone.xcodeproj/project.pbxproj', 'r') as f:
+    lines = f.readlines()
+new_lines = [l for l in lines if not ('LaunchScreen' in l and '.storyboard' in l)]
+with open('Unity-iPhone.xcodeproj/project.pbxproj', 'w') as f:
+    f.writelines(new_lines)
+print('Successfully removed storyboard build phase.')
+"
+          plutil -remove UILaunchStoryboardName Info.plist || true
+          plutil -remove UILaunchStoryboardName~ipad Info.plist || true
+          plutil -remove UILaunchStoryboardName~iphone Info.plist || true
+          plutil -remove UILaunchStoryboardName~ipod Info.plist || true
 
       - name: Setup Apple Certificates (Optional)
         id: setup_signing
